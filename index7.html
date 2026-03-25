@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Efata - Manual SRT Transcriber Live</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background: #eceff1; color: #333; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .brand-section { display: flex; flex-direction: column; }
+        .brand { font-size: 28px; font-weight: bold; color: #2196f3; line-height: 1; }
+        .saweria-top { margin-top: 8px; font-size: 0.9em; background: #fff3e0; padding: 5px 10px; border-radius: 4px; display: inline-block; width: fit-content; }
+        .saweria-top a { color: #faae2b; text-decoration: none; font-weight: bold; }
+        video { width: 100%; border-radius: 8px; background: #000; margin: 20px 0 10px 0; }
+        video::cue { background: rgba(0, 0, 0, 0.7); color: white; font-size: 18px; }
+        .time-display { font-family: 'Courier New', monospace; font-size: 1.2em; color: #e91e63; font-weight: bold; text-align: center; margin-bottom: 15px; }
+        .upload-section { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .controls { padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; background: #fff; }
+        .slider-group { margin: 15px 0; }
+        .slider-group label { display: inline-block; width: 60px; font-weight: bold; }
+        input[type="range"] { width: calc(100% - 150px); vertical-align: middle; cursor: pointer; }
+        textarea { width: 100%; height: 80px; margin: 15px 0; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; resize: vertical; }
+        .nav-buttons { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 6px; transition: 0.2s; font-weight: 600; }
+        .btn-primary { background: #2196f3; color: white; }
+        .btn-success { background: #4caf50; color: white; }
+        .btn-warning { background: #ff9800; color: white; }
+        button:hover { opacity: 0.8; }
+        .lang-switch { cursor: pointer; color: #2196f3; text-decoration: underline; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="brand-section">
+            <div class="brand">EFATA</div>
+            <div class="saweria-top">
+                Support me: <a href="https://saweria.co/emberdanmesin" target="_blank">saweria.co/emberdanmesin</a>
+            </div>
+        </div>
+        <span class="lang-switch" onclick="toggleLanguage()">Switch to Bahasa Indonesia</span>
+    </div>
+
+    <div class="upload-section">
+        <div>
+            <label id="t-loadVid" style="display:block; margin-bottom:5px;">1. Load Video/Audio:</label>
+            <input type="file" id="videoFile" accept="video/*,audio/*" onchange="loadMedia(event)">
+        </div>
+        <div>
+            <label id="t-loadSrt" style="display:block; margin-bottom:5px;">2. Load SRT (Optional):</label>
+            <input type="file" id="srtFile" accept=".srt" onchange="loadSRT(event)">
+        </div>
+    </div>
+    
+    <video id="mainPlayer" controls>
+        <track id="liveTrack" kind="subtitles" srclang="en" label="Live Preview" default>
+    </video>
+    <div class="time-display" id="currentTime">00:00:00.000</div>
+
+    <div id="editor" style="display:none;" class="controls">
+        <div style="text-align: center; font-weight: bold; margin-bottom: 10px;">
+            <span id="t-seg">Segment</span>: <span id="currentSegIdx">1</span> / <span id="totalSegs">0</span>
+        </div>
+        
+        <div class="slider-group">
+            <label>Start</label>
+            <input type="range" id="startSlider" min="0" step="0.001" oninput="updateTimes()">
+            <span id="startTimeLabel">0.000</span>s
+        </div>
+        
+        <div class="slider-group">
+            <label>Stop</label>
+            <input type="range" id="stopSlider" min="0" step="0.001" oninput="updateTimes()">
+            <span id="stopTimeLabel">0.000</span>s
+        </div>
+        
+        <textarea id="subText" oninput="updateTimes()" placeholder="Type subtitle text here..."></textarea>
+        
+        <div class="nav-buttons">
+            <button class="btn-warning" id="t-btnPlay" onclick="playSegment()">▶ Play Segment</button>
+            <button class="btn-primary" id="t-btnPrev" onclick="prevSegment()">Previous</button>
+            <button class="btn-primary" id="t-btnNext" onclick="nextSegment()">Next / Save</button>
+            <button class="btn-success" id="t-btnExp" onclick="exportSRT()">Download .SRT</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let segments = [];
+    let currentIdx = 0;
+    let currentLang = 'en';
+    const player = document.getElementById('mainPlayer');
+    const track = document.getElementById('liveTrack');
+
+    const i18n = {
+        en: { loadVid: "1. Load Video/Audio:", loadSrt: "2. Load SRT (Continue):", seg: "Segment", btnPlay: "▶ Play Segment", btnPrev: "Previous", btnNext: "Next / Save", btnExp: "Download .SRT", placeholder: "Type here..." },
+        id: { loadVid: "1. Masukkan Video/Audio:", loadSrt: "2. Masukkan SRT (Lanjutkan):", seg: "Segmen", btnPlay: "▶ Putar Segmen", btnPrev: "Kembali", btnNext: "Lanjut / Simpan", btnExp: "Unduh .SRT", placeholder: "Ketik teks di sini..." }
+    };
+
+    function toggleLanguage() {
+        currentLang = currentLang === 'en' ? 'id' : 'en';
+        document.querySelector('.lang-switch').innerText = currentLang === 'en' ? "Switch to Bahasa Indonesia" : "Switch to English";
+        const lang = i18n[currentLang];
+        document.getElementById('t-loadVid').innerText = lang.loadVid;
+        document.getElementById('t-loadSrt').innerText = lang.loadSrt;
+        document.getElementById('t-seg').innerText = lang.seg;
+        document.getElementById('t-btnPlay').innerText = lang.btnPlay;
+        document.getElementById('t-btnPrev').innerText = lang.btnPrev;
+        document.getElementById('t-btnNext').innerText = lang.btnNext;
+        document.getElementById('t-btnExp').innerText = lang.btnExp;
+        document.getElementById('subText').placeholder = lang.placeholder;
+    }
+
+    function loadMedia(event) {
+        const file = event.target.files;
+        if (!file || file.length === 0) return;
+        player.src = URL.createObjectURL(file[0]);
+        player.onloadedmetadata = () => {
+            if (segments.length === 0) setupInitialSegments(player.duration);
+            else fillRemainingTime(player.duration);
+            document.getElementById('editor').style.display = 'block';
+            updateTotalInfo();
+            updateLivePreview();
+        };
+    }
+
+    function setupInitialSegments(duration) {
+        segments = [];
+        for (let i = 0; i < duration; i += 5) {
+            segments.push({ start: i, end: Math.min(i + 5, duration), text: "" });
+        }
+        loadSegment(0);
+    }
+
+    function loadSRT(event) {
+        const file = event.target.files;
+        if (!file || file.length === 0) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            parseSRT(e.target.result);
+            if (player.duration) fillRemainingTime(player.duration);
+            updateLivePreview();
+        };
+        reader.readAsText(file[0]);
+    }
+
+    function parseSRT(data) {
+        const srtRegex = /(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})\n([\s\S]*?)(?=\n{2}|\n*$)/g;
+        let match;
+        const newSegments = [];
+        while ((match = srtRegex.exec(data)) !== null) {
+            newSegments.push({
+                start: timeToSec(match[2]),
+                end: timeToSec(match[3]),
+                text: match[4].trim()
+            });
+        }
+        if (newSegments.length > 0) {
+            segments = newSegments;
+            loadSegment(0);
+            updateTotalInfo();
+        }
+    }
+
+    function fillRemainingTime(duration) {
+        let lastEnd = segments.length > 0 ? segments[segments.length - 1].end : 0;
+        if (lastEnd < duration) {
+            for (let i = lastEnd; i < duration; i += 5) {
+                segments.push({ start: i, end: Math.min(i + 5, duration), text: "" });
+            }
+        }
+        updateTotalInfo();
+    }
+
+    function timeToSec(t) {
+        const a = t.replace(',', '.').split(':');
+        return (+a[0]) * 3600 + (+a[1]) * 60 + (+a[2]);
+    }
+
+    function loadSegment(idx) {
+        currentIdx = idx;
+        const seg = segments[idx];
+        document.getElementById('currentSegIdx').innerText = idx + 1;
+        const max = player.duration || 3600;
+        document.getElementById('startSlider').max = max;
+        document.getElementById('stopSlider').max = max;
+        document.getElementById('startSlider').value = seg.start;
+        document.getElementById('stopSlider').value = seg.end;
+        document.getElementById('subText').value = seg.text;
+        updateTimes(false);
+    }
+
+    function updateTimes(save = true) {
+        const start = parseFloat(document.getElementById('startSlider').value);
+        const stop = parseFloat(document.getElementById('stopSlider').value);
+        if(save) {
+            segments[currentIdx].start = start;
+            segments[currentIdx].end = stop;
+            segments[currentIdx].text = document.getElementById('subText').value;
+            updateLivePreview();
+        }
+        document.getElementById('startTimeLabel').innerText = start.toFixed(3);
+        document.getElementById('stopTimeLabel').innerText = stop.toFixed(3);
+    }
+
+    function updateLivePreview() {
+        let vtt = "WEBVTT\n\n";
+        segments.forEach(seg => {
+            if (seg.text.trim()) {
+                const s = new Date(seg.start * 1000).toISOString().substr(11, 12);
+                const e = new Date(seg.end * 1000).toISOString().substr(11, 12);
+                vtt += `${s} --> ${e}\n${seg.text}\n\n`;
+            }
+        });
+        const blob = new Blob([vtt], { type: 'text/vtt' });
+        if (track.src) URL.revokeObjectURL(track.src);
+        track.src = URL.createObjectURL(blob);
+    }
+
+    function playSegment() {
+        player.currentTime = segments[currentIdx].start;
+        player.play();
+        const check = setInterval(() => {
+            if (player.currentTime >= segments[currentIdx].end) { 
+                player.pause(); 
+                clearInterval(check); 
+            }
+        }, 10);
+    }
+
+    function nextSegment() {
+        updateTimes();
+        if (currentIdx < segments.length - 1) loadSegment(currentIdx + 1);
+    }
+
+    function prevSegment() {
+        updateTimes();
+        if (currentIdx > 0) loadSegment(currentIdx - 1);
+    }
+
+    function updateTotalInfo() { document.getElementById('totalSegs').innerText = segments.length; }
+
+    function formatTime(s) {
+        const date = new Date(0); date.setSeconds(s);
+        const ms = Math.floor((s % 1) * 1000).toString().padStart(3, '0');
+        return date.toISOString().substr(11, 8) + "," + ms;
+    }
+
+    function exportSRT() {
+        updateTimes();
+        let srt = "";
+        segments.forEach((seg, i) => {
+            if (seg.text.trim()) srt += `${i + 1}\n${formatTime(seg.start)} --> ${formatTime(seg.end)}\n${seg.text}\n\n`;
+        });
+        const blob = new Blob([srt], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = "Efata_Final.srt";
+        a.click();
+    }
+
+    player.ontimeupdate = () => {
+        const t = player.currentTime;
+        const ms = Math.floor((t % 1) * 1000).toString().padStart(3, '0');
+        document.getElementById('currentTime').innerText = new Date(t * 1000).toISOString().substr(11, 8) + "." + ms;
+    };
+</script>
+
+</body>
+</html>
