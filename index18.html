@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Efata Transcriber - "Ephphatha!"</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 95%; max-width: 1100px; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        .lang-switcher { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 10px; width: 100%; }
+        .lang-btn { background: #eee; padding: 5px 12px; font-size: 12px; border-radius: 20px; color: #555; border: none; cursor: pointer; }
+        .lang-btn.active { background: #3498db; color: white; }
+
+        h1 { color: #2c3e50; margin-bottom: 5px; text-align: center; }
+        .motto { font-style: italic; color: #7f8c8d; text-align: center; margin-bottom: 15px; line-height: 1.6; max-width: 800px; margin-left: auto; margin-right: auto; }
+
+        .saweria-box-top { text-align: center; padding: 15px; background: #fff9e6; border-radius: 12px; border: 1px dashed #f39c12; margin-bottom: 25px; }
+        .saweria-btn { background: #faae2b; color: #000; text-decoration: none; padding: 10px 20px; border-radius: 50px; font-weight: bold; display: inline-flex; align-items: center; gap: 10px; border: 2px solid #000; font-size: 14px; }
+
+        .file-controls { display: flex; gap: 10px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee; justify-content: center; }
+        .mark-controls { display: flex; justify-content: center; gap: 15px; margin: 10px 0 25px 0; }
+        
+        #blockList { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; max-height: 450px; overflow-y: auto; padding: 10px; border: 1px solid #eee; border-radius: 8px; }
+
+        .video-container { position: relative; width: 100%; background: #000; border-radius: 10px; overflow: hidden; margin-bottom: 15px; border: 4px solid #34495e; }
+        video { width: 100%; max-height: 400px; display: block; }
+        #subtitle-overlay { position: absolute; bottom: 10%; left: 0; right: 0; text-align: center; color: white; font-size: 26px; font-weight: bold; text-shadow: 2px 2px 5px #000; pointer-events: none; padding: 0 25px; background: rgba(0,0,0,0.5); min-height: 1.2em; }
+
+        button { padding: 12px 25px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; transition: 0.3s; }
+        .btn-blue { background: #3498db; color: white; }
+        .btn-orange { background: #f39c12; color: white; }
+        .btn-markup { background: #2ecc71; color: white; flex: 1; font-size: 1.2em; box-shadow: 0 4px 0 #27ae60; }
+        .btn-markdown { background: #e74c3c; color: white; flex: 1; font-size: 1.2em; box-shadow: 0 4px 0 #c0392b; }
+        .btn-save { background: #2c3e50; color: white; width: 100%; margin-top: 10px; font-size: 1.2em; }
+
+        .srt-block { display: flex; align-items: center; gap: 20px; background: #fff; border: 1px solid #dcdde1; padding: 20px; border-radius: 10px; position: relative; }
+        .active-block { border: 2px solid #2ecc71; background: #f5fff9; }
+        .overlap-error { border: 2px solid #e74c3c !important; background: #fff5f5 !important; }
+        .overlap-text { position: absolute; top: 5px; right: 60px; color: #e74c3c; font-weight: bold; font-size: 11px; display: none; }
+        
+        .time-inputs { display: flex; flex-direction: column; gap: 10px; min-width: 300px; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        textarea { flex-grow: 1; height: 80px; padding: 12px; border-radius: 6px; border: 1px solid #bdc3c7; font-size: 15px; resize: vertical; }
+        .btn-delete { background: #ff7675; color: white; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; padding: 0; display: flex; align-items: center; justify-content: center; line-height: 0; }
+
+        .info-section { margin-top: 50px; border-top: 2px solid #eee; padding-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .info-card { background: #f8f9fa; padding: 20px; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="lang-switcher">
+        <button class="lang-btn active" id="btn-id" onclick="setLang('id')">🇮🇩 Indonesia</button>
+        <button class="lang-btn" id="btn-en" onclick="setLang('en')">🇺🇸 English</button>
+    </div>
+
+    <h1 id="t-title">EFATA TRANSCRIBER</h1>
+    <p class="motto" id="t-motto">"Ephphatha!" (Markus 7:34): Dari kata "Efata" yang berarti "Terbukalah!". Melambangkan audio yang tadinya tertutup kini terbuka menjadi teks.</p>
+
+    <div class="saweria-box-top">
+        <span id="t-support" style="font-weight: bold; color: #d35400; margin-right: 15px;">Dukung Efata:</span>
+        <a href="https://saweria.co" target="_blank" class="saweria-btn">☕ Saweria</a>
+    </div>
+
+    <div class="file-controls">
+        <input type="file" id="videoInput" accept="video/*,audio/*" style="display:none">
+        <button class="btn-blue" id="t-open" onclick="document.getElementById('videoInput').click()">🎬 BUKA MEDIA</button>
+        <input type="file" id="srtInput" accept=".srt" style="display:none">
+        <button class="btn-orange" id="t-load" onclick="document.getElementById('srtInput').click()">📂 LANJUTKAN .SRT</button>
+    </div>
+
+    <div class="mark-controls">
+        <button class="btn-markup" id="t-markup" onclick="markUp()">🟢 MARK UP (F1)</button>
+        <button class="btn-markdown" id="t-markdown" onclick="markDown()">🔴 MARK DOWN (F2)</button>
+    </div>
+
+    <div id="blockList"></div>
+
+    <div class="video-container">
+        <video id="player" controls></video>
+        <div id="subtitle-overlay"></div>
+    </div>
+
+    <button class="btn-save" id="t-save" onclick="saveSRT()">💾 SIMPAN / DOWNLOAD .SRT (F3)</button>
+
+    <div class="info-section">
+        <div class="info-card">
+            <h3 id="t-guide-h">📖 Panduan</h3>
+            <ul id="t-guide-list">
+                <li><b>F1</b>: Titik awal & Video Play.</li>
+                <li><b>F2</b>: Titik akhir, Pause & Fokus teks.</li>
+                <li><b>Overlap</b>: Merah jika tabrakan.</li>
+            </ul>
+        </div>
+        <div class="info-card">
+            <h3 id="t-logic-h">💻 Logika</h3>
+            <ul id="t-logic-list">
+                <li><b>Preview</b>: Teks muncul di video.</li>
+                <li><b>Global Key</b>: F1-F3 aktif saat mengetik.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    const langData = {
+        id: { title: "EFATA TRANSCRIBER", motto: '"Ephphatha!" (Markus 7:34): Dari kata "Efata" yang berarti "Terbukalah!". Melambangkan audio yang tadinya tertutup kini terbuka menjadi teks.', support: "Dukung Efata:", open: "🎬 BUKA MEDIA", load: "📂 LANJUTKAN .SRT", markup: "🟢 MARK UP (F1)", markdown: "🔴 MARK DOWN (F2)", save: "💾 SIMPAN / DOWNLOAD .SRT (F3)", guideH: "📖 Panduan", guideL: "<li><b>F1</b>: Titik awal & Video Play.</li><li><b>F2</b>: Titik akhir, Pause & Fokus teks.</li><li><b>Overlap</b>: Merah jika tabrakan.</li>", logicH: "💻 Logika", logicL: "<li><b>Preview</b>: Teks muncul di video.</li><li><b>Global Key</b>: F1-F3 aktif saat mengetik.</li>" },
+        en: { title: "EFATA TRANSCRIBER", motto: '"Ephphatha!" (Markus 7:34): From the word "Ephphatha" which means "Be Opened!". Symbolizes audio that was once closed now opened as text.', support: "Support Efata:", open: "🎬 OPEN MEDIA", load: "📂 RESUME .SRT", markup: "🟢 MARK UP (F1)", markdown: "🔴 MARK DOWN (F2)", save: "💾 SAVE / DOWNLOAD .SRT (F3)", guideH: "📖 User Guide", guideL: "<li><b>F1</b>: Start & Play.</li><li><b>F2</b>: End & Pause.</li><li><b>Overlap</b>: Red if overlapping.</li>", logicH: "💻 Logic", logicL: "<li><b>Preview</b>: Live text on video.</li><li><b>Global Key</b>: F1-F3 active while typing.</li>" }
+    };
+
+    function setLang(l) {
+        document.getElementById('btn-id').classList.toggle('active', l === 'id');
+        document.getElementById('btn-en').classList.toggle('active', l === 'en');
+        document.getElementById('t-title').innerText = langData[l].title;
+        document.getElementById('t-motto').innerText = langData[l].motto;
+        document.getElementById('t-support').innerText = langData[l].support;
+        document.getElementById('t-open').innerText = langData[l].open;
+        document.getElementById('t-load').innerText = langData[l].load;
+        document.getElementById('t-markup').innerText = langData[l].markup;
+        document.getElementById('t-markdown').innerText = langData[l].markdown;
+        document.getElementById('t-save').innerText = langData[l].save;
+        document.getElementById('t-guide-h').innerText = langData[l].guideH;
+        document.getElementById('t-guide-list').innerHTML = langData[l].guideL;
+        document.getElementById('t-logic-h').innerText = langData[l].logicH;
+        document.getElementById('t-logic-list').innerHTML = langData[l].logicL;
+    }
+
+    const video = document.getElementById('player');
+    const overlay = document.getElementById('subtitle-overlay');
+    const blockList = document.getElementById('blockList');
+    let startTime = null;
+
+    document.getElementById('videoInput').onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) video.src = URL.createObjectURL(file);
+    };
+
+    document.getElementById('srtInput').onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => { parseSRT(ev.target.result); };
+        reader.readAsText(file);
+    };
+
+    function parseSRT(data) {
+        blockList.innerHTML = "";
+        const rawBlocks = data.replace(/\r/g, "").split(/\n\n+/);
+        rawBlocks.forEach(b => {
+            const lines = b.trim().split("\n");
+            const timeLine = lines.find(l => l.includes(" --> "));
+            if (timeLine) {
+                const times = timeLine.split(" --> ");
+                addBlock(srtToSec(times[0]), srtToSec(times[1]), lines.slice(lines.indexOf(timeLine) + 1).join("\n"));
+            }
+        });
+        checkAllOverlaps();
+    }
+
+    function srtToSec(t) {
+        const p = t.split(':');
+        const s = p[2].split(',');
+        return (parseInt(p[0]) * 3600) + (parseInt(p[1]) * 60) + parseInt(s[0]) + (parseInt(s[1]) / 1000);
+    }
+
+    video.ontimeupdate = () => {
+        let txt = "";
+        const now = video.currentTime;
+        document.querySelectorAll('.srt-block').forEach(div => {
+            const s = parseFloat(div.querySelector('.s-range').value);
+            const e = parseFloat(div.querySelector('.e-range').value);
+            if (now >= s && now <= e) {
+                txt = div.querySelector('textarea').value;
+                div.classList.add('active-block');
+            } else {
+                div.classList.remove('active-block');
+            }
+        });
+        overlay.innerText = txt;
+    };
+
+    function checkAllOverlaps() {
+        const blocks = [...document.querySelectorAll('.srt-block')].sort((a,b) => 
+            parseFloat(a.querySelector('.s-range').value) - parseFloat(b.querySelector('.s-range').value));
+        blocks.forEach((block, i) => {
+            const warn = block.querySelector('.overlap-text');
+            block.classList.remove('overlap-error');
+            warn.style.display = 'none';
+            if (i > 0) {
+                const pEnd = parseFloat(blocks[i-1].querySelector('.e-range').value);
+                const cStart = parseFloat(block.querySelector('.s-range').value);
+                if (cStart < pEnd) {
+                    block.classList.add('overlap-error');
+                    warn.style.display = 'block';
+                    warn.innerText = "⚠ Overlapping!";
+                }
+            }
+        });
+    }
+
+    const markUp = () => { startTime = video.currentTime; video.play(); };
+    const markDown = () => {
+        if (startTime === null) return;
+        video.pause();
+        addBlock(startTime, video.currentTime);
+        startTime = null;
+        checkAllOverlaps();
+    };
+
+    function addBlock(start, end, text = "") {
+        const div = document.createElement('div');
+        div.className = 'srt-block';
+        div.innerHTML = `<div class="overlap-text"></div>
+            <div class="time-inputs">
+                <span>Start: <b class="s-lab">${fmt(start)}</b></span>
+                <input type="range" class="s-range" min="0" max="${video.duration || 3600}" step="0.01" value="${start}">
+                <span>End: <b class="e-lab">${fmt(end)}</b></span>
+                <input type="range" class="e-range" min="0" max="${video.duration || 3600}" step="0.01" value="${end}">
+            </div>
+            <textarea placeholder="Write text...">${text}</textarea>
+            <button class="btn-delete" onclick="this.parentElement.remove(); checkAllOverlaps();">✖</button>`;
+        
+        const sr = div.querySelector('.s-range');
+        const er = div.querySelector('.e-range');
+        sr.oninput = () => { div.querySelector('.s-lab').innerText = fmt(sr.value); checkAllOverlaps(); };
+        er.oninput = () => { div.querySelector('.e-lab').innerText = fmt(er.value); checkAllOverlaps(); };
+        sr.onchange = () => { video.currentTime = sr.value; };
+        
+        blockList.appendChild(div);
+        if(!text) div.querySelector('textarea').focus();
+        div.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function fmt(s) {
+        const d = new Date(0); d.setSeconds(s);
+        const iso = d.toISOString().substr(11, 8);
+        const ms = Math.floor((s % 1) * 1000).toString().padStart(3, '0');
+        return iso + "," + ms;
+    }
+
+    function saveSRT() {
+        let out = "";
+        const blocks = [...document.querySelectorAll('.srt-block')].sort((a,b) => 
+            parseFloat(a.querySelector('.s-range').value) - parseFloat(b.querySelector('.s-range').value));
+        blocks.forEach((b, i) => {
+            const s = b.querySelector('.s-range').value;
+            const e = b.querySelector('.e-range').value;
+            out += `${i+1}\n${fmt(s)} --> ${fmt(e)}\n${b.querySelector('textarea').value}\n\n`;
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([out], {type:'text/plain'}));
+        a.download = "Efata_Transcript.srt";
+        a.click();
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'F1') { e.preventDefault(); markUp(); }
+        if (e.key === 'F2') { e.preventDefault(); markDown(); }
+        if (e.key === 'F3') { e.preventDefault(); saveSRT(); }
+    });
+</script>
+</body>
+</html>
